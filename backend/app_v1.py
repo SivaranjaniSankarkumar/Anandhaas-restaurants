@@ -859,19 +859,8 @@ def text_to_speech(text: str, language: str = "hi-IN") -> bytes | None:
 def generate_pdf_report(fig, title, insights):
     with io.BytesIO() as pdf_buffer:
         with PdfPages(pdf_buffer) as pdf:
+            # Save only the chart - no separate insights page
             pdf.savefig(fig, bbox_inches="tight", dpi=150)
-            fig_text, ax_text = plt.subplots(figsize=(6, 4))
-            ax_text.text(0.05, 0.95, title, fontsize=12, fontweight="bold", transform=ax_text.transAxes)
-            ax_text.text(0.05, 0.85, "Key Insights:", fontsize=10, fontweight="bold", transform=ax_text.transAxes)
-            insight_lines = insights.replace(". ", ".\n").split("\n")
-            y_pos = 0.75
-            for line in insight_lines[:10]:
-                if line.strip():
-                    ax_text.text(0.05, y_pos, line.strip(), fontsize=9, transform=ax_text.transAxes, wrap=True)
-                    y_pos -= 0.08
-            ax_text.axis("off")
-            pdf.savefig(fig_text, bbox_inches="tight", dpi=150)
-            plt.close(fig_text)
         pdf_buffer.seek(0)
         return pdf_buffer.read()
 

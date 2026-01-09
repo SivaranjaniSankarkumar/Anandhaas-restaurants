@@ -3,7 +3,7 @@ import { ExternalLink } from 'lucide-react';
 
 export default function Dashboard() {
   const handleOpenDashboard = () => {
-    window.open('YOUR_RESTAURANT_QUICKSUITE_DASHBOARD_LINK_HERE', '_blank');
+    window.open('https://us-east-1.quicksight.aws.amazon.com/sn/accounts/851095475212/dashboards/c3cedbe7-ccac-4663-94d4-ff472c1c50e8?directory_alias=anandhaas-restaurants', '_blank');
   };
 
   return (
