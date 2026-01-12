@@ -993,11 +993,15 @@ def tts_api():
     return jsonify({"audio": base64.b64encode(audio_bytes).decode("utf-8")})
 
 
+# Slack configuration
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
-SLACK_CHANNEL_ID = os.getenv("SLACK_CHANNEL_ID") or "C09UUJZ56QJ"
+SLACK_CHANNELS = {
+    "test_channel_1": os.getenv("SLACK_CHANNEL_ID") or "C09UUJZ56QJ",
+    "test_channel_2": "C0A6JK35E20"
+}
 
-print(f"DEBUG: SLACK_BOT_TOKEN loaded: {SLACK_BOT_TOKEN[:20]}...")
-print(f"DEBUG: SLACK_CHANNEL_ID loaded: {SLACK_CHANNEL_ID}")
+print(f"DEBUG: SLACK_BOT_TOKEN loaded: {SLACK_BOT_TOKEN[:20] if SLACK_BOT_TOKEN else 'None'}...")
+print(f"DEBUG: SLACK_CHANNELS loaded: {SLACK_CHANNELS}")
 
 
 try:
@@ -1007,12 +1011,11 @@ try:
 except Exception as e:
     print(f"DEBUG: Slack auth test failed: {e}")
 
-def send_pdf_to_slack(pdf_bytes, filename, title, initial_comment):
-    """Send PDF to Slack - exact copy from working Streamlit version"""
+def send_pdf_to_slack(pdf_bytes, filename, title, initial_comment, channel_key="test_channel_1"):
     token = SLACK_BOT_TOKEN
-    channel = SLACK_CHANNEL_ID
+    channel = SLACK_CHANNELS.get(channel_key)
     if not token or not channel:
-        return {"success": False, "message": "Slack not configured"}
+        return {"success": False, "message": "Slack not configured or invalid channel"}
     try:
         client = WebClient(token=token)
         pdf_file = io.BytesIO(pdf_bytes)
@@ -1025,10 +1028,10 @@ def send_pdf_to_slack(pdf_bytes, filename, title, initial_comment):
             initial_comment=initial_comment
         )
         if response and response.get("ok"):
-            return {"success": True, "message": "Successfully sent to Slack"}
+            return {"success": True, "message": f"Successfully sent to {channel_key}"}
         else:
             error_msg = response.get("error", "Unknown error") if response else "Unknown error"
-            return {"success": False, "message": f"Failed to send to Slack: {error_msg}"}
+            return {"success": False, "message": f"Failed to send to {channel_key}: {error_msg}"}
     except SlackApiError as e:
         error_msg = str(e.response.get("error", str(e))) if hasattr(e, 'response') else str(e)
         return {"success": False, "message": f"Slack API error: {error_msg}"}
@@ -1037,31 +1040,38 @@ def send_pdf_to_slack(pdf_bytes, filename, title, initial_comment):
 
 @app.route("/api/send-to-slack", methods=["POST", "GET"])
 def send_to_slack_api():
-    print("=== SLACK ENDPOINT CALLED ===")
     try:
         global last_pdf_data
-        print(f"PDF available: {bool(last_pdf_data.get('data'))}")
-        print(f"PDF size: {len(last_pdf_data.get('data', b''))} bytes")
-        
         if not last_pdf_data.get('data'):
             return jsonify({"success": False, "message": "No PDF available. Generate a chart first."}), 400
         
-        print("Calling send_pdf_to_slack...")
+        # Get channel selection from request
+        channel_key = "test_channel_1"  # default
+        if request.method == "POST":
+            data = request.get_json(silent=True) or {}
+            channel_key = data.get("channel", "test_channel_1")
+        
         result = send_pdf_to_slack(
             pdf_bytes=last_pdf_data['data'],
             filename=last_pdf_data['filename'],
             title=last_pdf_data['title'],
-            initial_comment=last_pdf_data['insights']
+            initial_comment=last_pdf_data['insights'],
+            channel_key=channel_key
         )
-        print(f"Slack result: {result}")
-        
         return jsonify(result)
         
     except Exception as e:
-        print(f"Slack endpoint error: {e}")
-        import traceback
-        traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/api/slack-channels", methods=["GET"])
+def get_slack_channels():
+    """Get available Slack channels"""
+    return jsonify({
+        "channels": [
+            {"key": "test_channel_1", "name": "Slack Test Channel 1"},
+            {"key": "test_channel_2", "name": "Slack Test Channel 2"}
+        ]
+    })
 
 @app.route("/api/last-pdf-info", methods=["GET"])
 def get_last_pdf_info():

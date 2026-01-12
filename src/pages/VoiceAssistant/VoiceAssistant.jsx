@@ -25,6 +25,11 @@ export default function VoiceAssistant() {
   const [backendStatus, setBackendStatus] = useState('checking');
   const [slackSending, setSlackSending] = useState(false);
   const [slackMessage, setSlackMessage] = useState('');
+  const [selectedChannel, setSelectedChannel] = useState('test_channel_1');
+  const [slackChannels, setSlackChannels] = useState([
+    {key: 'test_channel_1', name: 'Slack Test Channel 1'},
+    {key: 'test_channel_2', name: 'Slack Test Channel 2'}
+  ]);
   const [showUserQuery, setShowUserQuery] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
   
@@ -59,7 +64,20 @@ export default function VoiceAssistant() {
   // Check backend status on component mount
   useEffect(() => {
     checkBackendStatus();
+    loadSlackChannels();
   }, []);
+
+  async function loadSlackChannels() {
+    try {
+      const response = await fetch(`${API_BASE}/slack-channels`);
+      if (response.ok) {
+        const data = await response.json();
+        setSlackChannels(data.channels);
+      }
+    } catch (error) {
+      console.error('Failed to load Slack channels:', error);
+    }
+  }
 
   async function checkBackendStatus() {
     try {
@@ -253,6 +271,7 @@ export default function VoiceAssistant() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          channel: selectedChannel,
           pdf_base64: chartData.pdf_base64,
           filename: chartData.pdf_filename || 'report.pdf',
           title: chartData.title || 'Business Report',
@@ -615,18 +634,32 @@ export default function VoiceAssistant() {
                 Download PDF Report
               </button>
               
-              <button
-                onClick={handleSendToSlack}
-                disabled={slackSending}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  slackSending 
-                    ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-green-600 hover:bg-green-700'
-                } text-white`}
-              >
-                <MessageSquare className="w-4 h-4" />
-                {slackSending ? 'Sending...' : 'Send to Slack'}
-              </button>
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedChannel}
+                  onChange={(e) => setSelectedChannel(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  {slackChannels.map(channel => (
+                    <option key={channel.key} value={channel.key}>
+                      {channel.name}
+                    </option>
+                  ))}
+                </select>
+                
+                <button
+                  onClick={handleSendToSlack}
+                  disabled={slackSending}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                    slackSending 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-green-600 hover:bg-green-700'
+                  } text-white`}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  {slackSending ? 'Sending...' : 'Send to Slack'}
+                </button>
+              </div>
               
               {slackMessage && (
                 <span className={`text-sm font-medium ${
